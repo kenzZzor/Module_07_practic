@@ -1,0 +1,162 @@
+public interface ICostCalculationStrategy
+{
+    decimal CalculateCost(decimal distance, string serviceClass, int passengers, bool isChild, bool isSenior);
+}
+
+public class AirplaneCostStrategy : ICostCalculationStrategy
+{
+    public decimal CalculateCost(decimal distance, string serviceClass, int passengers, bool isChild, bool isSenior)
+    {
+        decimal baseCost = distance * 0.2m;
+        decimal serviceClassMultiplier = serviceClass == "business" ? 1.5m : 1.0m;
+        decimal discount = (isChild || isSenior) ? 0.8m : 1.0m;
+        return baseCost * serviceClassMultiplier * discount * passengers;
+    }
+}
+
+public class TrainCostStrategy : ICostCalculationStrategy
+{
+    public decimal CalculateCost(decimal distance, string serviceClass, int passengers, bool isChild, bool isSenior)
+    {
+        decimal baseCost = distance * 0.1m;
+        decimal serviceClassMultiplier = serviceClass == "business" ? 1.3m : 1.0m;
+        decimal discount = (isChild || isSenior) ? 0.85m : 1.0m;
+        return baseCost * serviceClassMultiplier * discount * passengers;
+    }
+}
+
+
+public class BusCostStrategy : ICostCalculationStrategy
+{
+    public decimal CalculateCost(decimal distance, string serviceClass, int passengers, bool isChild, bool isSenior)
+    {
+        decimal baseCost = distance * 0.05m;
+        decimal discount = (isChild || isSenior) ? 0.9m : 1.0m;
+        return baseCost * discount * passengers;
+    }
+}
+
+public class TravelBookingContext
+{
+    private ICostCalculationStrategy _costCalculationStrategy;
+
+    public void SetCostCalculationStrategy(ICostCalculationStrategy costCalculationStrategy)
+    {
+        _costCalculationStrategy = costCalculationStrategy;
+    }
+
+    public decimal CalculateTripCost(decimal distance, string serviceClass, int passengers, bool isChild, bool isSenior)
+    {
+        if (_costCalculationStrategy == null)
+        {
+            throw new InvalidOperationException("Стратегия расчета не выбрана.");
+        }
+        return _costCalculationStrategy.CalculateCost(distance, serviceClass, passengers, isChild, isSenior);
+    }
+}
+
+
+
+public interface IObserver
+{
+    void Update(string stockSymbol, decimal newPrice);
+}
+
+public interface ISubject
+{
+    void RegisterObserver(IObserver observer);
+    void RemoveObserver(IObserver observer);
+    void NotifyObservers(string stockSymbol, decimal newPrice);
+}
+
+public class StockExchange : ISubject
+{
+    private Dictionary<string, decimal> _stocks = new Dictionary<string, decimal>();
+    private List<IObserver> _observers = new List<IObserver>();
+
+    public void RegisterObserver(IObserver observer)
+    {
+        _observers.Add(observer);
+    }
+
+    public void RemoveObserver(IObserver observer)
+    {
+        _observers.Remove(observer);
+    }
+
+    public void NotifyObservers(string stockSymbol, decimal newPrice)
+    {
+        foreach (var observer in _observers)
+        {
+            observer.Update(stockSymbol, newPrice);
+        }
+    }
+
+    public void SetStockPrice(string stockSymbol, decimal newPrice)
+    {
+        _stocks[stockSymbol] = newPrice;
+        NotifyObservers(stockSymbol, newPrice);
+    }
+}
+
+public class Trader : IObserver
+{
+    private string _name;
+
+    public Trader(string name)
+    {
+        _name = name;
+    }
+
+    public void Update(string stockSymbol, decimal newPrice)
+    {
+        Console.WriteLine($"{_name} получил обновление по акции {stockSymbol}: новая цена {newPrice}");
+    }
+}
+
+public class TradingRobot : IObserver
+{
+    private string _stockToMonitor;
+    private decimal _thresholdPrice;
+
+    public TradingRobot(string stockToMonitor, decimal thresholdPrice)
+    {
+        _stockToMonitor = stockToMonitor;
+        _thresholdPrice = thresholdPrice;
+    }
+
+    public void Update(string stockSymbol, decimal newPrice)
+    {
+        if (stockSymbol == _stockToMonitor && newPrice > _thresholdPrice)
+        {
+            Console.WriteLine($"Робот: Цена акции {stockSymbol} выше {newPrice}. Продаю акции.");
+        }
+        else if (stockSymbol == _stockToMonitor && newPrice < _thresholdPrice)
+        {
+            Console.WriteLine($"Робот: Цена акции {stockSymbol} ниже {newPrice}. Покупаю акции.");
+        }
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        StockExchange stockExchange = new StockExchange();
+
+        IObserver trader1 = new Trader("Трейдер 1");
+        IObserver trader2 = new Trader("Трейдер 2");
+        IObserver robot1 = new TradingRobot("AAPL", 150);
+
+        stockExchange.RegisterObserver(trader1);
+        stockExchange.RegisterObserver(trader2);
+        stockExchange.RegisterObserver(robot1);
+
+        stockExchange.SetStockPrice("AAPL", 145);
+        stockExchange.SetStockPrice("AAPL", 155);
+
+        stockExchange.RemoveObserver(trader2);
+
+        stockExchange.SetStockPrice("GOOGL", 2750);
+    }
+}
